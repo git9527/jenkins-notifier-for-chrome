@@ -1,8 +1,8 @@
 {
     "manifest_version": 2,
     "content_security_policy": "script-src 'self'; object-src 'self'",
-    "name": "Jenkins Notifier for Chrome™",
-        "version": "0.3.2",
+    "name": "Jenkins Notifier for Chrome™ (Citi)",
+        "version": "0.3.3.1",
         "icons": {
             "128": "images/icon.png",
             "48": "images/icon.png",
@@ -20,7 +20,7 @@
     },
     "browser_action": {
         "default_icon": "images/icon.png",
-        "default_title": "Jenkins Notifier for Chrome™",
+        "default_title": "Jenkins Notifier for Chrome™ (Citi)",
         "default_popup": "options.html"
     },
     "permissions": [

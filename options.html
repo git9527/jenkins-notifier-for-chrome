@@ -1,6 +1,6 @@
 <html>
   <head>
-    <title>Jenkins Notifier for Chrome™</title>
+    <title>Jenkins Notifier for Chrome™ -- Citi</title>
     <meta HTTP-EQUIV="Content-type" CONTENT="text/html; charset=UTF-8"/>
     <link rel="stylesheet" href="stylesheets/main.css" type="text/css" media="all">
     <script type="text/javascript" src="javascripts/jquery.min.js"></script>
@@ -9,17 +9,25 @@
   <body>
     <div class='main'>
       <div class='header'>
-        <h1 style='font-size:1.5em;'>Jenkins Notifier for Chrome™</h1>
+        <h1 style='font-size:1.5em;'>Jenkins Notifier for Chrome™ -- Citi</h1>
       </div>
       <div class='content'>
         <form id="from">
           <fieldset>
+          	<div class="clearfix">
+              <div class="left">
+                <label>SOEID </label>
+              </div>
+              <div class="right">
+                <input name="soeid" id="soeid" class="text" placeholder="Please enter your soeid to receive notification" autofocus="true" />
+              </div>
+            </div>
             <div class="clearfix">
               <div class="left">
                 <label>Jenkins URL </label>
               </div>
               <div class="right">
-                <input name="jenkins-url" id="jenkins-url" class="text" placeholder="http://localhost:8080/jenkins" autofocus="true" />
+                <input name="jenkins-url" id="jenkins-url" class="text" placeholder="http://localhost:8080/jenkins"/>
               </div>
             </div>
             <div class="clearfix">
@@ -27,15 +35,15 @@
                 <label>Job name</label>
               </div>
               <div class="right">
-                <input name="job-name" id="job-name" class="text" placeholder="jobname" />
+                <input name="job-name" id="job-name" class="text" placeholder="Leave it blank to monitor all jobs" />
               </div>
             </div>
             <div class="clearfix">
               <div class="left">
-                <label>Notify Only Fail</label>
+                <label>Notification</label>
               </div>
               <div class="right">
-                <input name="notify-only-fail" id="notify-only-fail" class="text" type="checkbox" />
+                <input name="notify-only-fail" id="notify-only-fail" type="checkbox" /> Only failures
               </div>
             </div>
             <div class="clearfix">
@@ -43,7 +51,6 @@
                 <label>Websocket</label>
               </div>
               <div class="right">
-                <input name="use-websocket" id="use-websocket" type="checkbox" /> Use<br />
                 <input name="websocket-url" id="websocket-url" class="text" placeholder="ws://localhost:8081/jenkins" /><br />
                 To use websocket, you need to install <a href="https://wiki.jenkins-ci.org/display/JENKINS/Websocket+Plugin">Jenkins Websocket Plugin</p>
               </div>

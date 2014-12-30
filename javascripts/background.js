@@ -1,11 +1,11 @@
 $(function(){
     var apiUrl = localStorage["jenkins-url"];
+    var soeid = localStorage["soeid"];
     var jobName = localStorage["job-name"];
-    var useWebsocket   = localStorage["use-websocket"];
     var websocketUrl   = localStorage["websocket-url"];
     var notifyOnlyFail = localStorage["notify-only-fail"];
 
-    if (apiUrl == null || jobName == null || (useWebsocket == 'true' && websocketUrl == null)) {
+    if (apiUrl == null || websocketUrl == null || soeid == null) {
         return;
     }
 
@@ -37,10 +37,11 @@ $(function(){
     }
 
     function isSuccess(result) {
-        if (result == "SUCCESS") {
-          return true
-        }
-        return false;
+        return (result == "SUCCESS");
+    }
+    
+    function getSoeId(link){
+    	return link.substring(link.lastIndexOf("/")+1);
     }
 
     function getIcon(result) {
@@ -70,33 +71,58 @@ $(function(){
     // replace popup event
     chrome.browserAction.setPopup({popup : ""});
     chrome.browserAction.onClicked.addListener(function(tab) {
-        window.open(apiUrl + JOB + jobName);
+    	if (jobName && jobName != ""){
+    		window.open(apiUrl + JOB + jobName);
+    	}else{
+    		window.open(apiUrl);
+    	}
     });
 
-    function fetch(apiUrl, num) {
+    function fetch(apiUrl, num, job) {
         if (num == null) {
             num = BUILD_NUMBER;
         }
-        var url = apiUrl + JOB + jobName + "/" + num + API_SUB;
-
+        var url = apiUrl + JOB + job + "/" + num + API_SUB;
+        console.info("get job info:" + url);
         $.getJSON(url, function(json, result) {
             if (result != "success") {
                 return;
             }
             if (prevBuild != json.number) {
-                if(notifyOnlyFail == 'true' && isSuccess(json.result)) {
+                if (notifyOnlyFail == 'true' && isSuccess(json.result)) {
                     return;
+                }
+                var submitUser = "";
+                var description = "";
+                // Started by upstream project
+                if (json.actions[0].causes){
+                	if (isSuccess(json.result)){
+                		console.info(job + " build success trigger by upstream project,skip");
+                		return;
+                	}else{
+                		description = json.actions[0].causes[0].shortDescription;
+                	}
+                }else{
+                	description = json.actions[1].causes[0].shortDescription;
+                	if (description == "Started by an SCM change"){
+                    	for(var culprit in json.culprits){
+                    		submitUser += getSoeid(culprit.absoluteUrl);
+                        }
+                    }else{
+                    	submitUser = json.actions[1].causes[0].userId;
+                    }
+                	console.info(job + " " + description + ",user:" + submitUser);
                 }
                 prevBuild = json.number;
                 chrome.browserAction.setBadgeText({text: String(json.number)});
                 chrome.browserAction.setBadgeBackgroundColor({color: getColor(json.result)});
-                $.fn.desktopNotify(
-                    {
+                if (submitUser == "" || submitUser.indexOf(soeid) > -1){
+                	$.fn.desktopNotify({
                         picture: getIcon(json.result),
-                        title: "#" + json.number + " (" + json.result + ")",
-                        text : json.actions[0].causes[0].shortDescription
-                    }
-                );
+                        title: "[Jenkins] " + job + ": Build #" + json.number + " -" + json.result,
+                        text : description
+                    });
+                }
             }
         });
     }
@@ -111,9 +137,14 @@ $(function(){
         });
 
         ws.bind("websocket::message", function(_, obj) {
-            if (!!obj.result && obj.project == jobName) {
-                fetch(apiUrl, obj.number);
-            }
+        	console.log(obj);
+        	if (jobName && jobName != ""){
+        		if (jobName == obj.project){
+        			fetch(apiUrl, obj.number , obj.project);
+        		}
+        	}else{
+        		fetch(apiUrl, obj.number , obj.project);
+        	}
         });
 
         ws.bind("websocket::error", function() {
@@ -140,12 +171,5 @@ $(function(){
         });
     }
 
-    if (useWebsocket == 'true') {
-        bind(websocketUrl, apiUrl);
-    } else {
-        fetch(apiUrl, BUILD_NUMBER); // first fetch
-        setInterval(function() {
-            fetch(apiUrl, BUILD_NUMBER);
-        }, POLLING_TIME);
-    }
+    bind(websocketUrl, apiUrl);
 });

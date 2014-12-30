@@ -22,7 +22,7 @@
     content:".";
 }
 .text {
-    width: 50%;
+    width: 90%;
 }
 #jenkins-url, #websocket-url {
     width: 100%;
