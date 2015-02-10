@@ -18,13 +18,7 @@ $(function(){
 
     $.ajaxSetup({
         "error": function() {
-            $.fn.desktopNotify(
-                {
-                    picture: getIcon("FAILURE"),
-                    title: "Failed to access to Jenkins",
-                    text : apiUrl
-                }
-            );
+        	desktopNotify('FAILURE','Failed to access to Jenkins','Please check your URL:' + apiUrl, apiUrl);
         }
     });
 
@@ -71,63 +65,66 @@ $(function(){
     // replace popup event
     chrome.browserAction.setPopup({popup : ""});
     chrome.browserAction.onClicked.addListener(function(tab) {
-    	if (jobName && jobName != ""){
-    		window.open(apiUrl + JOB + jobName);
-    	}else{
-    		window.open(apiUrl);
-    	}
+		window.open(apiUrl);
     });
-
+    
     function fetch(apiUrl, num, job) {
         if (num == null) {
             num = BUILD_NUMBER;
         }
-        var url = apiUrl + JOB + job + "/" + num + API_SUB;
-        console.info("get job info:" + url);
-        $.getJSON(url, function(json, result) {
+        var jobUrl = apiUrl + JOB + job + "/" + num;
+        var jsonUrl = jobUrl + API_SUB;
+        console.info("get job info:" + jobUrl);
+        
+        $.getJSON(jsonUrl, function(json, result) {
             if (result != "success") {
                 return;
             }
+            chrome.browserAction.setBadgeText({text: String(json.number)});
+            chrome.browserAction.setBadgeBackgroundColor({color: getColor(json.result)});
+            chrome.browserAction.onClicked.addListener(function(tab) {
+            		window.open(jobUrl);
+            });
             if (prevBuild != json.number) {
                 if (notifyOnlyFail == 'true' && isSuccess(json.result)) {
                     return;
                 }
                 var submitUser = "";
                 var description = "";
-                // Started by upstream project
                 if (json.actions[0].causes){
-                	if (isSuccess(json.result)){
-                		console.info(job + " build success trigger by upstream project,skip");
-                		return;
-                	}else{
-                		description = json.actions[0].causes[0].shortDescription;
-                	}
-                }else{
-                	description = json.actions[1].causes[0].shortDescription;
+                	description = json.actions[0].causes[0].shortDescription;
                 	if (description == "Started by an SCM change"){
-                    	for(var culprit in json.culprits){
-                    		submitUser += getSoeid(culprit.absoluteUrl);
+                		for(var index in json.culprits){
+                    		submitUser += getSoeId(json.culprits[index].absoluteUrl);
                         }
-                    }else{
-                    	submitUser = json.actions[1].causes[0].userId;
+                	// Started by upstream project
+                	}else if (description.indexOf('Started by upstream project') > -1){
+                		if (isSuccess(json.result)){
+                    		console.info(job + " build success trigger by upstream project, skip");
+                    		return;
+                    	}else{
+                    		description = json.actions[0].causes[0].shortDescription;
+                    	}
                     }
-                	console.info(job + " " + description + ",user:" + submitUser);
+                } else {
+                	var cause = json.actions[1].causes[0];
+                	submitUser = cause.userId;
+                	description = cause.shortDescription;
                 }
+                console.info(job + " " + description + ",user:" + submitUser);
                 prevBuild = json.number;
-                chrome.browserAction.setBadgeText({text: String(json.number)});
-                chrome.browserAction.setBadgeBackgroundColor({color: getColor(json.result)});
                 if (submitUser == "" || submitUser.indexOf(soeid) > -1){
-                	$.fn.desktopNotify({
-                        picture: getIcon(json.result),
-                        title: "[Jenkins] " + job + ": Build #" + json.number + " -" + json.result,
-                        text : description
-                    });
+                	desktopNotify(json.result,
+                			"[Jenkins] " + job + ": Build #" + json.number + " -" + json.result,
+                			'Click here to see more details',
+                			jobUrl);
                 }
             }
         });
     }
 
     var retryTime = 2500;
+    var retryCount = 0;
     function bind(wsUrl, apiUrl) {
         var ws = $("<div />");
 
@@ -148,27 +145,40 @@ $(function(){
         });
 
         ws.bind("websocket::error", function() {
-            $.fn.desktopNotify(
-                {
-                    picture: getIcon("FAILURE"),
-                    title: "Failed to access to Jenkins Websocket Notifier. Please check your websocket URL",
-                    text : wsUrl
-                }
-            );
+        	desktopNotify('FAILURE','Failed to access to Jenkins Websocket','Please check your websocket URL:' + wsUrl, 'http://www.baidu.com');
+//            $.fn.desktopNotify(
+//                {
+//                    picture: getIcon("FAILURE"),
+//                    title: "Failed to access to Jenkins Websocket Notifier. Please check your websocket URL",
+//                    text : wsUrl
+//                }
+//            );
         });
 
         // auto reconnect
         ws.bind('websocket::close', function() {
-            console.log('closed connection');
-            retryTime *= 2;
-            setTimeout(function() {
-                bind(websocketUrl, apiUrl);
-            }, retryTime);
+            console.log('closed connection, retry count:' + retryCount++);
+            if (retryCount <5){
+            	retryTime = retryTime * 2;
+                setTimeout(function() {
+                    bind(websocketUrl, apiUrl);
+                }, retryTime);
+            }
         });
 
         ws.webSocket({
             entry : wsUrl
         });
+    }
+    
+    function desktopNotify(iconType,title,message,url){
+    	var notify = new Notification(title,{
+    		icon: getIcon(iconType),
+    		body: message
+    	});
+    	notify.onclick = function(){
+    		window.open(url);
+    	}
     }
 
     bind(websocketUrl, apiUrl);
